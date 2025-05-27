@@ -1,4 +1,4 @@
------------------------
+----------------------- JUST A SMALL CHANGE. WHEN IN VEHICLE AND YOU PRESS G YOU TURN ON THE VEHICLE, TURNING OFF VEHICLE MID DRIVE PRESSING G, AND YOU CAN'T TURN IT BACK ON USING W OR S, SOFT BREAK ALSO WORKS.
 ----   Variables   ----
 -----------------------
 local QBCore = exports['qb-core']:GetCoreObject()
@@ -779,3 +779,75 @@ RegisterNUICallback('engine', function()
     ToggleEngine(GetVehicle())
     SetNuiFocus(false, false)
 end)
+
+
+-------------------------------------
+-- TURN OFF VEHICLE WHEN U WANT TOGGLE WITH /startengine OR "G" or any BINDED TO THAT FUNCTION BUTTON. --
+-------------------------------------
+local engineManuallyToggled = {}
+
+
+CreateThread(function()
+    while true do
+        Wait(0)
+        local ped = PlayerPedId()
+        if IsPedInAnyVehicle(ped, false) then
+            local veh = GetVehiclePedIsIn(ped, false)
+            local plate = QBCore.Functions.GetPlate(veh)
+
+            if GetPedInVehicleSeat(veh, -1) == ped then
+                if not engineManuallyToggled[plate] then
+                    
+                    if GetIsVehicleEngineRunning(veh) then
+                        SetVehicleEngineOn(veh, false, true, true)
+                    end
+
+                    
+                    local speed = GetEntitySpeed(veh)
+                    
+                    DisableControlAction(0, 71, true) -- Accelerate (W)
+                    DisableControlAction(0, 86, true) -- Horn (E)
+                    
+                    
+                    if speed < 1.0 then
+                        DisableControlAction(0, 72, true) -- Brake (S)
+                    end
+
+                    DisableControlAction(0, 63, true) -- Steer Left (A)
+                    DisableControlAction(0, 64, true) -- Steer Right (D)
+                end
+            end
+        else
+            Wait(500)
+        end
+    end
+end)
+
+
+RegisterCommand('engine', function()
+    local ped = PlayerPedId()
+    local veh = GetVehiclePedIsIn(ped, false)
+    if veh and veh ~= 0 then
+        local plate = QBCore.Functions.GetPlate(veh)
+        if HasKeys(plate) or AreKeysJobShared(veh) then
+            local engineOn = GetIsVehicleEngineRunning(veh)
+            SetVehicleEngineOn(veh, not engineOn, false, true)
+            engineManuallyToggled[plate] = not engineOn
+        else
+            QBCore.Functions.Notify("You don't have the keys.", "error")
+        end
+    end
+end, false)
+
+RegisterKeyMapping('engine', 'Toggle Engine', 'keyboard', 'G')
+
+
+CreateThread(function()
+    while true do
+        Wait(1000)
+        if not IsPedInAnyVehicle(PlayerPedId(), false) then
+            engineManuallyToggled = {}
+        end
+    end
+end)
+
